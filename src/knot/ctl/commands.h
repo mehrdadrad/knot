@@ -44,6 +44,7 @@
 #define CTL_FILTER_PURGE_ZONEFILE	'f'
 #define CTL_FILTER_PURGE_JOURNAL	'j'
 #define CTL_FILTER_PURGE_KASPDB		'k'
+#define CTL_FILTER_PURGE_ORPHAN		'o'
 
 /*! Control commands. */
 typedef enum {

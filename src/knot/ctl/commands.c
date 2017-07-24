@@ -995,7 +995,29 @@ static int zone_txn_unset(zone_t *zone, ctl_args_t *args)
 			return zone_update_remove_node(zone->control_update, owner);
 		}
 	}
+}
 
+static int orphan_purge(zone_t *zone, ctl_args_t *args)
+{
+	return KNOT_EOK;
+}
+
+static int orphans_purge(ctl_args_t *args)
+{
+	if (args->data[KNOT_CTL_IDX_ZONE] == NULL) {
+
+		int ret;
+
+		if (MATCH_OR_FILTER(args, CTL_FILTER_PURGE_KASPDB)) {
+			if (kasp_db_open(*kaspdb()) == KNOT_EOK &&
+			    kasp_db_list_zones(*kaspdf(), ) == KNOT_EOK) {
+			}
+		}
+	} else {
+
+	}
+
+	return KNOT_EOK;
 }
 
 static int zone_purge(zone_t *zone, ctl_args_t *args)
@@ -1221,7 +1243,11 @@ static int ctl_zone(ctl_args_t *args, ctl_cmd_t cmd)
 	case CTL_ZONE_UNSET:
 		return zones_apply(args, zone_txn_unset);
 	case CTL_ZONE_PURGE:
-		return zones_apply(args, zone_purge);
+		if (MATCH_AND_FILTER(args, CTL_FILTER_PURGE_ORPHAN)) {
+			return orphans_purge(args);
+		} else {
+			return zones_apply(args, zone_purge);
+		}
 	case CTL_ZONE_STATS:
 		return zones_apply(args, zone_stats);
 	default:
