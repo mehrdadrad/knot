@@ -29,6 +29,7 @@
 
 #include "libknot/consts.h"
 #include "libknot/rrset.h"
+#include "libknot/wire.h"
 
 /* Forward decls */
 typedef struct knot_pkt knot_pkt_t;
@@ -287,7 +288,6 @@ int knot_edns_reserve_option(knot_rrset_t *opt_rr, uint16_t code,
  * \brief Adds EDNS Option to the OPT RR.
  *
  * \note The function now supports adding empty OPTION (just having its code).
- *       This does not make much sense now with NSID, but may be ok use later.
  *
  * \param opt_rr  OPT RR structure to add the Option to.
  * \param code    Option code.
@@ -302,20 +302,26 @@ int knot_edns_add_option(knot_rrset_t *opt_rr, uint16_t code,
                          uint16_t size, const uint8_t *data, knot_mm_t *mm);
 
 /*!
- * \brief Checks if the OPT RR contains Option with the specified code.
- *
- * \param opt_rr OPT RR structure to check for the Option in.
- * \param code Option code to check for.
- *
- * \retval true if the OPT RR contains Option with Option code \a code.
- * \retval false otherwise.
+ * \brief Pointers to every option in the OPT RR wire.
  */
-bool knot_edns_has_option(const knot_rrset_t *opt_rr, uint16_t code);
+typedef struct {
+	uint8_t *ptr[KNOT_EDNS_MAX_OPTION_CODE + 1];
+} knot_edns_options_t;
+
+/*!
+ * \brief Initializes pointers to options in a given OPT RR.
+ *
+ * \param opt_rr   OPT RR structure to be used.
+ * \param out      Structure to be initialized.
+ *
+ * \retval KNOT_E*
+ */
+int knot_edns_options_init(knot_rrset_t *opt_rr, knot_edns_options_t *out);
 
 /*!
  * \brief Searches the OPT RR for option with the specified code.
  *
- * \param opt_rr  OPT RR structure to search for the Option in.
+ * \param opt_rr  OPT RR structure to search in.
  * \param code    Option code to search for.
  *
  * \retval pointer to option if found
@@ -326,24 +332,28 @@ uint8_t *knot_edns_get_option(const knot_rrset_t *opt_rr, uint16_t code);
 /*!
  * \brief Returns the option code.
  *
- * \warning No safety checks are performed on the supplied data.
- *
  * \param opt  EDNS option (including code, length and data portion).
  *
  * \retval EDNS option code
  */
-uint16_t knot_edns_opt_get_code(const uint8_t *opt);
+static inline uint16_t knot_edns_opt_get_code(const uint8_t *opt)
+{
+	assert(opt != NULL);
+	return knot_wire_read_u16(opt);
+}
 
 /*!
  * \brief Returns the option data length.
- *
- * \warning No safety checks are performed on the supplied data.
  *
  * \param opt  EDNS option (including code, length and data portion).
  *
  * \retval EDNS option length
  */
-uint16_t knot_edns_opt_get_length(const uint8_t *opt);
+static inline uint16_t knot_edns_opt_get_length(const uint8_t *opt)
+{
+	assert(opt != NULL);
+	return knot_wire_read_u16(opt + sizeof(uint16_t));
+}
 
 /*!
  * \brief Returns pointer to option data.
@@ -358,17 +368,6 @@ static inline uint8_t *knot_edns_opt_get_data(uint8_t *opt)
 {
 	return opt + KNOT_EDNS_OPTION_HDRLEN;
 }
-
-/*!
- * \brief Checks OPT RR semantics.
- *
- * Checks whether RDATA are OK, i.e. that all OPTIONs have proper lengths.
- *
- * \param opt_rr  OPT RR to check.
- *
- * \return true if passed, false if failed
- */
-bool knot_edns_check_record(knot_rrset_t *opt_rr);
 
 /*!
  * \brief Computes a reasonable Padding data length for a given packet and opt RR.
