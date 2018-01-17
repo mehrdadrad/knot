@@ -75,6 +75,8 @@ typedef struct {
 	knot_time_t event_rollover;
 	knot_time_t event_parent_ds_q;
 	pthread_mutex_t event_mutex;
+
+	bool zone_doomed;
 } online_sign_ctx_t;
 
 static bool want_dnssec(knotd_qdata_t *qdata)
@@ -505,6 +507,10 @@ static knotd_in_state_t pre_routine(knotd_in_state_t state, knot_pkt_t *pkt,
         (void)pkt, (void)qdata;
 
         pthread_mutex_lock(&ctx->event_mutex);
+        if (ctx->zone_doomed) {
+                pthread_mutex_unlock(&ctx->event_mutex);
+                return KNOTD_IN_STATE_ERROR;
+        }
         ctx->kctx.now = time(NULL);
         int ret = KNOT_ESEMCHECK;
         if (knot_time_cmp(ctx->event_parent_ds_q, ctx->kctx.now) <= 0) {
@@ -529,7 +535,8 @@ static knotd_in_state_t pre_routine(knotd_in_state_t state, knot_pkt_t *pkt,
                 free_zone_keys(&ctx->keyset);
                 ret = load_zone_keys(&ctx->kctx, &ctx->keyset, true);
                 if (ret != KNOT_EOK) {
-                        abort(); // dunno how one can solve this :(
+                        ctx->zone_doomed = true;
+                        state = KNOTD_IN_STATE_ERROR;
                 }
         }
         pthread_mutex_unlock(&ctx->event_mutex);
